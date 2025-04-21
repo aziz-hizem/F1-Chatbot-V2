@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
+# Load environment variables from .env file
+load_dotenv()
+
 API_KEY = os.getenv("GROQ_API_KEY")
 
 # Log the loaded API key for debugging
