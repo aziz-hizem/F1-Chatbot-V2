@@ -1,9 +1,9 @@
+import os
 import sqlite3
 import logging
 
-DB_PATH = "data/f1_database.db"
+DB_PATH = os.path.join(os.path.dirname(__file__), "data", "f1_database.db")
 
-# Fix logging format issue
 logging.info("Using database path: %s", DB_PATH)
 
 def execute_sql(query: str):
