@@ -65,7 +65,9 @@ const App = () => {
   // Update the fetchBotResponse function to send selectedResponses to the backend
   const fetchBotResponse = async (userMessage) => {
     try {
-      const response = await fetch('http://localhost:8000/ask', {
+      // Use environment variable for API URL
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
