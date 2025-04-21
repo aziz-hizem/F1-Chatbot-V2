@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from .llm_query import get_sql_from_llama, PROMPT_TEMPLATE, DB_SCHEMA, API_KEY, RESULT_FORMATTING_PROMPT, FINAL_PROMPT, FAILED_SQL_PROMPT
-from .database import execute_sql
+from llm_query import get_sql_from_llama, PROMPT_TEMPLATE, DB_SCHEMA, API_KEY, RESULT_FORMATTING_PROMPT, FINAL_PROMPT, FAILED_SQL_PROMPT
+from database import execute_sql
 import requests
 import json
 import logging
