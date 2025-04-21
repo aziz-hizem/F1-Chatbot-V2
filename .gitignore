@@ -1,0 +1,15 @@
+# Ignore Python cache and virtual environments
+backend/__pycache__/
+backend/venv/
+backend/.env
+
+# Ignore instructions file
+instructions.md
+
+
+# Node modules (if you ever add them at root)
+node_modules/
+
+# Mac/Windows system files
+.DS_Store
+Thumbs.db
