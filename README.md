@@ -15,6 +15,7 @@ An interactive chatbot system that provides detailed Formula 1 information, incl
 ---
 
 ## Folder Structure
+```
 F1 Chatbot/
 │
 ├── backend/           # Python backend (API, database, logic)
@@ -34,7 +35,7 @@ F1 Chatbot/
 ├── schema.md          # Database schema
 ├── README.md          # This file
 └── .gitignore
-
+``
 
 ---
 
@@ -87,4 +88,5 @@ F1 Chatbot/
 - Used React, Vite, TailwindCSS, and Vercel for the frontend
 
 - Used Python, FastAPI, and SQLite for the backend
+
 
