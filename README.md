@@ -35,7 +35,7 @@ F1 Chatbot/
 ├── schema.md          # Database schema
 ├── README.md          # This file
 └── .gitignore
-``
+```
 
 ---
 
