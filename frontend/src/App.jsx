@@ -5,9 +5,7 @@ import { GoSidebarExpand, GoSidebarCollapse } from "react-icons/go";
 import './App.css'; // For animation styles
 
 // Logos and backgrounds
-import generalF1Logo from './assets/logos/generalf1_logo.png';
 import f1logoResized from './assets/logos/f1_logo_resized.png';
-import f1logoWhite from './assets/logos/f1_logo_white.png';
 import f1logo from './assets/logos/f1_logo.png';
 import ferrariLogo from './assets/logos/ferrari_logo.png';
 import mercedesLogo from './assets/logos/mercedes_logo.png';
@@ -217,9 +215,8 @@ const App = () => {
       onClick={toggleResponseMenu}
       className={`flex items-center space-x-1 ${darkMode ? 'text-white' : 'text-gray-800'}`}
     >
-      {/* Use white logo in dark mode, colored logo in light mode for now disabled */}
-      <img 
-        src={darkMode ? f1logo : f1logo} 
+      <img
+        src={f1logo}
         className={`max-h-10 max-w-full delay-100 ${isSidebarOpen ? 'ml-0' : 'ml-12'}`} 
         alt="F1 Logo"
       />

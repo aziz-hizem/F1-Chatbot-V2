@@ -1,22 +1,28 @@
-import os
-import requests
 import logging
+import os
 import re
+
+import requests
 from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-
 # Load environment variables from .env file
 load_dotenv()
 
 API_KEY = os.getenv("GROQ_API_KEY")
+if not API_KEY:
+    logging.warning("GROQ_API_KEY is not set; requests to the LLM will fail.")
 
-# Log the loaded API key for debugging
-logging.info("Loaded API Key: %s", API_KEY)
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+# A small fast model writes the SQL, a larger one writes the conversational answers.
+# Both can be overridden when Groq retires a model.
+SQL_MODEL = os.getenv("GROQ_SQL_MODEL", "llama-3.1-8b-instant")
+ANSWER_MODEL = os.getenv("GROQ_ANSWER_MODEL", "llama-3.3-70b-versatile")
 
-with open("schema.md", "r") as f:
+SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.md")
+with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
     DB_SCHEMA = f.read()
 
 PROMPT_TEMPLATE = """You are an intelligent assistant for F1 racing data. Your task is to answer user questions conversationally based on the database schema and query results provided. Strictly follow the schema provided below and do not make assumptions about columns or tables that are not explicitly listed.
@@ -152,7 +158,7 @@ Generate a human conversation like response.
 Use one or two emojis to make the response more engaging and friendly.
 """
 
-FAILED_SQL_PROMPT= """
+FAILED_SQL_PROMPT = """
 
 ### Question:
 {question}
@@ -163,38 +169,44 @@ Focus solely on providing a clear and concise answer to the user's question.
 Make sure your information is correct.
 """
 
+
+def call_groq(prompt: str, model: str = ANSWER_MODEL, temperature: float = 0.3) -> str | None:
+    """Send one prompt to the Groq chat completions API and return the reply text."""
+    response = requests.post(
+        GROQ_URL,
+        headers={
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": temperature
+        },
+        timeout=60
+    )
+    body = response.json()
+    if "choices" not in body:
+        logging.error("Unexpected Groq API response: %s", body.get("error", body))
+        return None
+    return body["choices"][0]["message"]["content"]
+
+
 def get_sql_from_llama(question: str, results: str = "No results available") -> str:
     prompt = PROMPT_TEMPLATE.format(schema=DB_SCHEMA, question=question, results=results)
 
-
     try:
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama3-8b-8192",
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.0
-            }
-        )
-      
+        content = call_groq(prompt, model=SQL_MODEL, temperature=0.0)
+        if content is None:
+            return "Error: Unable to generate SQL query. Please try again."
 
         # Extract the SQL query from the response
-        if "choices" in response.json():
-            content = response.json()["choices"][0]["message"]["content"]
-            match = re.search(r"```sql\n(.*?)```", content, re.DOTALL)
-            if match:
-                sql_query = match.group(1).strip()
-                return sql_query
-            else:
-                logging.error("No SQL query found in the LLM response")
-                return "Error: Unable to extract SQL query. Please try again."
-        else:
-            logging.error("'choices' key not found in LLM API response")
-            return "Error: Unable to generate SQL query. Please try again."
+        match = re.search(r"```sql\s*(.*?)```", content, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+        logging.error("No SQL query found in the LLM response")
+        return "Error: Unable to extract SQL query. Please try again."
 
     except Exception as e:
         logging.error("Exception occurred while calling LLM API: %s", str(e))

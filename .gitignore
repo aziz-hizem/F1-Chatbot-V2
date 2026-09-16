@@ -1,15 +1,25 @@
-# Ignore Python cache and virtual environments
-backend/__pycache__/
-backend/venv/
-backend/.env
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
 
-# Ignore instructions file
+# Secrets
+.env
+.env.local
+
+# Personal notes
 instructions.md
 
-
-# Node modules (if you ever add them at root)
+# Node
 node_modules/
+dist/
 
-# Mac/Windows system files
+# Editors / OS
+.vscode/
+.idea/
+.claude/
 .DS_Store
 Thumbs.db
+desktop.ini

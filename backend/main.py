@@ -1,23 +1,40 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from llm_query import get_sql_from_llama, PROMPT_TEMPLATE, DB_SCHEMA, API_KEY, RESULT_FORMATTING_PROMPT, FINAL_PROMPT, FAILED_SQL_PROMPT
-from database import execute_sql
-import requests
 import json
 import logging
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+
+from database import execute_sql
+from llm_query import (
+    FAILED_SQL_PROMPT,
+    FINAL_PROMPT,
+    RESULT_FORMATTING_PROMPT,
+    call_groq,
+    get_sql_from_llama,
+)
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Later restrict this to your frontend
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
+def ask_llm(prompt: str) -> str | None:
+    try:
+        return call_groq(prompt)
+    except Exception as e:
+        logging.error("Exception occurred while calling LLM API: %s", str(e))
+        return None
+
+
 @app.get("/")
 def root():
     return {"message": "Welcome to the F1 Chatbot API! Please use the frontend to interact with the chatbot."}
+
 
 @app.post("/ask")
 async def ask_question(request: Request):
@@ -27,102 +44,36 @@ async def ask_question(request: Request):
 
     sql_query = get_sql_from_llama(question)
 
-    # Check if the SQL query generation failed
+    # No usable SQL: fall back to answering from the model's own knowledge
     if sql_query.startswith("Error"):
-        # MADE IT MYSELFFFFFFFFFFFFFFFFFFFFFF !!!!!!!!!!!
-        failed_sql_prompt = FAILED_SQL_PROMPT.format(
-            question=question
-        )
-
-        responses = []  # Ensure responses list is defined
-
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": failed_sql_prompt}],
-                "temperature": 0.3
-            }
-        )
-
-        if "choices" in response.json():
-            refined_response = response.json()["choices"][0]["message"]["content"]
-            responses.append({"type": "refined", "content": refined_response})
-
-        return {
-                "question": question,
-                "responses": responses
-            }
+        responses = []
+        answer = ask_llm(FAILED_SQL_PROMPT.format(question=question))
+        if answer:
+            responses.append({"type": "refined", "content": answer})
+        return {"question": question, "responses": responses}
 
     result = execute_sql(sql_query)
+    results_json = json.dumps(result, indent=2)
 
-    # Essential logging for the query and the result
     logging.info("Generated SQL Query: %s", sql_query)
-    logging.info("Query Results: %s", json.dumps(result, indent=2))
-
-    # Limit the length of the query results sent to the LLM
-    if len(json.dumps(result)) > 1000:  # Example threshold
-        result = result  # Limit to the first 5 results for brevity by doing this result = result[:5] but i took it off
-        logging.warning("Query results truncated due to length.")
+    logging.info("Query Results: %s", results_json)
 
     responses = []
 
-    # Add SQL query response if selected
+    # Raw query results
     if selected_responses.get("Response 1 (SQL)", False):
-        responses.append({"type": "sql", "content": json.dumps(result, indent=2)})
+        responses.append({"type": "sql", "content": results_json})
 
-    # Generate refined responses if selected
+    # Conversational answer built from the results
     if selected_responses.get("Response 2 (Best)", False):
-        formatting_prompt = RESULT_FORMATTING_PROMPT.format(
-            question=question,
-            results=json.dumps(result, indent=2)
-        )
+        answer = ask_llm(RESULT_FORMATTING_PROMPT.format(question=question, results=results_json))
+        if answer:
+            responses.append({"type": "refined", "content": answer})
 
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": formatting_prompt}],
-                "temperature": 0.3
-            }
-        )
-
-        if "choices" in response.json():
-            refined_response = response.json()["choices"][0]["message"]["content"]
-            responses.append({"type": "refined", "content": refined_response})
-
+    # Experimental answer that keeps only the part answering the question
     if selected_responses.get("Response 3 (Test)", False):
-        final_prompt = FINAL_PROMPT.format(
-            question=question,
-            results=json.dumps(result, indent=2)
-        )
+        answer = ask_llm(FINAL_PROMPT.format(question=question, results=results_json))
+        if answer:
+            responses.append({"type": "final", "content": answer})
 
-        final_response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "llama-3.3-70b-versatile",
-                "messages": [{"role": "user", "content": final_prompt}],
-                "temperature": 0.3
-            }
-        )
-
-        if "choices" in final_response.json():
-            final_filtered_response = final_response.json()["choices"][0]["message"]["content"]
-            responses.append({"type": "final", "content": final_filtered_response})
-
-    return {
-        "question": question,
-        "responses": responses
-    }
+    return {"question": question, "responses": responses}
