@@ -128,3 +128,7 @@ f1-chatbot/
 - LLM inference by [Groq](https://groq.com)
 
 This is an unofficial fan project and is not associated with Formula 1, the FIA or any team. F1 and team names, logos and marks belong to their respective owners.
+
+## License
+
+[MIT](LICENSE)
